@@ -1,0 +1,68 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'15880
+V.Local.iRet.Declare(Long)
+V.Local.iWF.Declare(Long)
+V.Local.dateDue.Declare(Date)
+V.Local.stitle.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.sRouter.Declare(String)
+
+V.Local.sWO.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.sSequence.Declare(String)
+
+
+V.Local.sWO.Set(V.Passed.009990)
+V.Local.sSuffix.Set(V.Passed.009991)
+V.Local.sSequence.Set(V.Passed.009992)
+F.Intrinsic.Control.If(V.Passed.000003,=,"N")
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+V.Local.squery.Set("select JOB, SUFFIX from JOB_OPERATIONS WHERE LMO = 'L' AND JOB = '%JOB' AND SEQ = '%SEQ' AND SUFFIX = '%SUF' AND DESCRIPTION LIKE 'NEED INSPECTION RE%'")
+F.Intrinsic.String.Replace(V.Local.sQuery,"%JOB",V.local.sWO,V.local.squery)
+F.Intrinsic.String.Replace(V.Local.sQuery,"%SUF",V.local.sSuffix,V.local.squery)
+F.Intrinsic.String.Replace(V.Local.sQuery,"%SEQ",V.local.sSequence,V.local.squery)
+F.Intrinsic.Debug.Stop
+F.odbc.Connection!con.OpenRecordsetRO("rst",V.Local.sQuery)
+F.Intrinsic.Control.If(V.odbc.con!rst.EOF,=,True)
+	F.ODBC.con!rst.Close
+	F.ODBC.Connection!con.Close
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.endif
+
+F.ODBC.con!rst.Close
+F.Intrinsic.String.Concat("SELECT WF_ID, REF_0, REF_1 FROM ATG_WF_HEADER WHERE META_0 = 'WO_ORDER' AND META_1 = 'WO_SUFFIX' AND REF_0 = '",V.Local.sWO,"' AND REF_1 = '",V.Local.sSuffix,"'",V.Local.sQuery)
+
+F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.sQuery)
+
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,True)
+	F.Intrinsic.String.Concat("Work Order Inspection: ",V.Local.sWO,"-",V.Local.sSuffix,V.Local.stitle)
+	F.Global.WorkFlow.GetTemplateIDFromTitle("Work Order Inspection",V.Local.iWF)
+	F.Intrinsic.Control.If(V.Local.iWF,=,-1)
+		F.Intrinsic.UI.Msgbox("Template Work Flow: Work Order Inspection, Does Not Exists. No Work Flow Created")
+		F.Intrinsic.Control.end
+	F.Intrinsic.Control.EndIf
+	F.Global.workflow.CREATEFROMTEMPLATE(V.Local.iWF,V.Local.sTitle,V.Ambient.Now,V.Local.dateDue,V.Caller.User,1,V.Local.iWF)
+	F.Global.workflow.setMetadata(V.Local.iWF,1,0,"WO")
+	F.Global.workflow.setMetadata(V.Local.iWF,1,1,"WO_SUFFIX")
+	F.Global.workflow.setreferencedata(V.Local.iWF,0,V.Local.sWO)
+	F.Global.workflow.setreferencedata(V.Local.iWF,1,V.Local.sSuffix)
+	F.Intrinsic.String.Concat("A work flow has been generated: WF-ID-",V.local.iWF,V.Local.stitle)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+Program.Sub.Main.End
+
+
