@@ -1,0 +1,245 @@
+Program.Sub.ScreenSU.Start
+gui.F_Event..create
+gui.F_Event..caption("Kick Off Meeting")
+gui.F_Event..size(4395,1755)
+gui.F_Event..position(0,0)
+gui.F_Event..alwaysontop(False)
+gui.F_Event..fontname("Arial")
+gui.F_Event..fontsize(8)
+gui.F_Event..forecolor(0)
+gui.F_Event..fontstyle(,,,,)
+gui.F_Event..BackColor(-2147483633)
+gui.F_Event..controlbox(True)
+gui.F_Event..maxbutton(True)
+gui.F_Event..minbutton(True)
+gui.F_Event..mousepointer(0)
+gui.F_Event..moveable(True)
+gui.F_Event..sizeable(True)
+gui.F_Event..ShowInTaskBar(True)
+gui.F_Event..titlebar(True)
+gui.F_Event.dtpMeetingStart.create(datepicker)
+gui.F_Event.dtpMeetingStart.visible(True)
+gui.F_Event.dtpMeetingStart.size(1320,330)
+gui.F_Event.dtpMeetingStart.zorder(0)
+gui.F_Event.dtpMeetingStart.position(200,300)
+gui.F_Event.dtpMeetingStart.enabled(True)
+gui.F_Event.dtpMeetingStart.checkbox(False)
+gui.F_Event.lbl1.create(label,"Meeting Start",True,1935,255,1,200,90,True,0,Arial,8,-2147483633,0)
+gui.F_Event.lbl2.create(label,"Tim Start",True,780,255,1,1600,100,True,0,Arial,8,-2147483633,0)
+gui.F_Event.lbl3.create(label,"Time End",True,1935,255,1,2790,100,True,0,Arial,8,-2147483633,0)
+gui.F_Event.cmdSave.create(button)
+gui.F_Event.cmdSave.caption("Save")
+gui.F_Event.cmdSave.visible(True)
+gui.F_Event.cmdSave.size(855,375)
+gui.F_Event.cmdSave.zorder(0)
+gui.F_Event.cmdSave.position(175,755)
+gui.F_Event.cmdSave.enabled(True)
+gui.F_Event.cmdSave.fontname("Arial")
+gui.F_Event.cmdSave.fontsize(8)
+gui.F_Event.cmdSave.event(click,cmdsave_click)
+gui.F_Event.dtpStartTime.create(datepicker)
+gui.F_Event.dtpStartTime.visible(True)
+gui.F_Event.dtpStartTime.size(1185,330)
+gui.F_Event.dtpStartTime.zorder(0)
+gui.F_Event.dtpStartTime.position(1600,300)
+gui.F_Event.dtpStartTime.enabled(True)
+gui.F_Event.dtpStartTime.checkbox(False)
+gui.F_Event.dtpEndTime.create(datepicker)
+gui.F_Event.dtpEndTime.visible(True)
+gui.F_Event.dtpEndTime.size(1215,330)
+gui.F_Event.dtpEndTime.zorder(0)
+gui.F_Event.dtpEndTime.position(2795,305)
+gui.F_Event.dtpEndTime.enabled(True)
+gui.F_Event.dtpEndTime.checkbox(False)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Coded by: JND
+'Project Start Date: 6/19/2011
+'Hooks:
+'  12231
+'  34700
+'Notes:
+'  Quote 2383
+'  Start a WF for sales order line if prefix of part is F.
+'  WHen invoked from complete for line 1 it will prompt user for an event
+
+F.Intrinsic.Control.If(V.Caller.Hook,=,12231)
+	F.Intrinsic.Control.CallSub(Startwf)
+
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,34700)
+	F.Intrinsic.Debug.ShowCallerInfo
+	F.Intrinsic.Control.CallSub(Completelinewf)
+F.Intrinsic.Control.EndIf
+'
+
+
+Program.Sub.Main.End
+
+Program.Sub.StartWF.Start
+V.Local.iWF.Declare(Long)
+V.Local.sWF.Declare(String)
+
+V.Local.sWF.Set("TSE Order Entry Lines")
+
+V.Local.iRet.Declare(Long)
+V.Local.dateDue.Declare(Date)
+V.Local.stitle.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.slines.Declare(String)
+V.Local.sname.Declare(String)
+V.Local.sRep.Declare(String)
+V.Local.sord.Declare(String)
+V.Local.spart.Declare(String)
+V.Local.semail.Declare(String)
+
+'do part check here
+V.Local.spart.Set(V.Passed.000052)
+
+F.Intrinsic.String.Left(V.Local.spart,1,V.Local.sRet)
+
+F.Intrinsic.Control.If(V.Local.sRet.UCase,=,"F")
+	'check if already saved
+	F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+	'idea search meta data fields
+	F.Intrinsic.Debug.setla("Checking if WF already exists for order")
+	F.Intrinsic.String.Concat("SELECT WF_ID FROM ATG_WF_HEADER WHERE META_0 = 'ORDER_NUMBER' AND REF_0 = '",V.Passed.000060,"' AND  META_1 = 'ORDER_LINE' AND REF_1 = '",V.Passed.000051,"'",V.Local.sQuery)
+	F.ODBC.Connection!conx.OpenRecordsetRO("rst",V.Local.sQuery)
+
+	F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,=,True)
+		F.Intrinsic.String.Concat("New Sales Order: ",V.Passed.000060," Line: ",V.Passed.000051," Part: ",V.Local.spart,V.Local.stitle)
+		F.Global.WorkFlow.GetTemplateIDFromTitle(V.Local.sWF,V.Local.iWF)
+
+		F.Intrinsic.Control.If(V.Local.iWF,=,-1)
+			F.Intrinsic.String.Concat(V.Local.sWF," not found.",V.Local.sWF)
+			F.Intrinsic.ui.msgbox(V.Local.sWF)
+			F.Intrinsic.Control.End
+		F.Intrinsic.Control.EndIf
+
+		F.Global.workflow.CREATEFROMTEMPLATE(V.Local.iwf,V.Local.sTitle,V.Ambient.Now,V.Local.dateDue,V.Caller.User,1,V.Local.iWF)
+		F.Intrinsic.Control.If(V.Local.iWF,>,0)
+			F.Intrinsic.debug.setLA("WorkFlow Created: ",V.Local.iWF)
+			F.Global.workflow.setMetadata(V.Local.iWF,1,0,"ORDER_NUMBER")
+			F.Global.workflow.setreferencedata(V.Local.iWF,0,V.Passed.000060)
+			
+			F.Global.workflow.setMetadata(V.Local.iWF,1,1,"ORDER_LINE")
+			F.Global.workflow.setreferencedata(V.Local.iWF,1,V.Passed.000051)
+			F.Global.workflow.setMetadata(V.Local.iWF,1,1,"CUSTOMER")
+			F.Global.workflow.setreferencedata(V.Local.iWF,1,V.Passed.000051)
+		F.Intrinsic.Control.EndIf
+		F.Intrinsic.UI.Msgbox("A work flow has been created")
+	F.Intrinsic.Control.EndIf
+	F.ODBC.conx!rst.Close
+	F.ODBC.Connection!conx.close
+
+F.Intrinsic.Control.endif
+
+F.Intrinsic.Control.End
+
+
+Program.Sub.StartWF.End
+
+Program.Sub.CompleteLineWF.Start
+
+V.Local.iWF.Declare(Long)
+V.Local.iRet.Declare(Long)
+V.Local.dateDue.Declare(Date)
+V.Local.stitle.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.slines.Declare(String)
+V.Local.semail.Declare(String)
+V.Local.sname.Declare(String)
+V.Local.sRep.Declare(String)
+V.Local.iline.Declare(Long)
+V.Local.ssubject.Declare(String)
+
+V.Local.iwf.Set(V.Passed.DATA-WFID)
+V.Local.iLine.Set(V.Passed.DATA-WFLINE)
+
+F.Intrinsic.Control.If(V.Local.iline,=,1)
+	F.Intrinsic.UI.Msgbox("Kick Off meeting required?","Meeting",4,V.Local.iRet)
+	F.Intrinsic.Control.If(V.Local.iRet,=,7)
+		F.global.WorkFlow.SetLineCompletionPercentage(V.Local.iWF,4,100)
+		F.Global.WorkFlow.CompleteLine(V.Local.iWF,4)
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.ElseIf(V.Local.iRet,=,6)
+		Gui.F_Event.dtpstartTime.Format(3)
+		Gui.F_Event.dtpStartTime.CustomFormat("h:mm tt")
+		Gui.F_Event.dtpStartTime.Value(V.Ambient.Now)
+		Gui.F_Event.dtpMeetingStart.Value(V.Ambient.Now)
+		Gui.F_Event.dtpEndTime.Value(V.Ambient.Now)
+
+		Gui.F_Event.dtpendTime.Format(3)
+		Gui.F_Event.dtpEndTime.CustomFormat("h:mm tt")
+		Gui.F_Event..Show
+	F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.end
+F.Intrinsic.Control.EndIf
+
+Program.Sub.CompleteLineWF.End
+
+program.sub.form1_unload.start
+
+program.sub.form1_unload.end
+
+program.sub.cmdsave_click.start
+
+V.Local.iWF.Declare(Long)
+V.Local.iRet.Declare(Long)
+V.Local.dateDue.Declare(Date)
+V.Local.stitle.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.slines.Declare(String)
+V.Local.semail.Declare(String)
+V.Local.sname.Declare(String)
+V.Local.sRep.Declare(String)
+V.Local.iline.Declare(Long)
+V.Local.ssubject.Declare(String)
+V.Local.dateStart.Declare(Date)
+V.Local.dateEnd.Declare(Date)
+V.Local.sDesc.Declare(String)
+V.Local.sgrp.Declare(String)
+V.Local.sORder.Declare(String)
+V.Local.scomp.Declare(String)
+
+V.Local.iwf.Set(V.Passed.DATA-WFID)
+V.Local.iLine.Set(V.Passed.DATA-WFLINE)
+
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.Pdsn,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.String.Concat("SELECT  NOTIFY, USER_GROUP, USR_GRP_FLAG FROM ATG_WF_LINES WHERE WF_ID = ",V.Local.iWF," AND LINE =4 ORDER BY LINE",V.Local.sQuery)
+F.odbc.Connection!conx.OpenrecordsetRO("rstWF",V.Local.squery)
+
+F.Intrinsic.Control.if(V.odbc.conx!rstWF.EOF,=,False)
+
+	F.global.WorkFlow.ReadReferenceData(V.Local.iWF,0,V.Local.sORder)
+	F.Global.WorkFlow.ReadReferenceData(V.Local.iWF,1,V.Local.slines)
+	F.Intrinsic.String.LPad(V.Local.sORder,"0",7,V.Local.sORder)
+	F.Intrinsic.String.Concat("Kick Off Meeting For Sales Order: ",V.local.sret," Line: ",V.local.slines,V.Local.stitle)
+	V.Local.sQuery.Set("SELECT TOP 1 CUSTOMER FROM ORDER_HEADER WHERE ORDER_NO='%ORD'")
+	F.Intrinsic.String.Replace(V.Local.sQuery,"%ORD",V.Local.sORder,V.Local.sQuery)
+	F.ODBC.Connection!conx.OpenRecordsetRO("rstO",V.local.squery)
+	F.intrinsic.Control.If(V.ODBC.conx!rstO.EOF,=,False)
+		F.Global.CRM.SaveEvent(-1,1,V.ODBC.conx!rstO.FieldValTrim!CUSTOMER,15,-1,V.local.stitle,V.local.sDesc,V.local.dateStart,V.local.dateEnd,V.ODBC.conx!rstWF.FieldValtrim!usER_GROUP,-1,"false","false",-1,-1,"false",-1,-1,-1,-1,-1,"*NC*",-1,"","*NC*",V.caller.user,V.local.sOrder,V.local.sLine,"","","","","","","","",V.local.iret)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.conx!rstO.close
+F.Intrinsic.Control.endif
+F.ODBC.conx!rstWF.close
+
+F.ODBC.Connection!conx.Close
+
+F.Intrinsic.Control.End
+
+program.sub.cmdsave_click.end
+
+
