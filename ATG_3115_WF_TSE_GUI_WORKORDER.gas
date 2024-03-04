@@ -1,0 +1,46 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+
+'Call from 15934
+
+V.Local.sWO.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.sQuery.Declare(String)
+
+V.Local.sWO.Set(V.Passed.009000)
+V.Local.sSuffix.Set(V.Passed.009001)
+
+F.Intrinsic.String.Concat("SELECT WF_ID, REF_0, REF_1 FROM ATG_WF_HEADER WHERE META_0 = 'WO' AND META_1 = 'WO_SUFFIX' AND REF_0 = '",V.Local.sWO,"' AND REF_1 = '",V.Local.sSuffix,"'",V.Local.sQuery)
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.sQuery)
+
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.String.Concat("SELECT COMPLETION_DATE, COMPLETED_BY FROM ATG_WF_LINES WHERE WF_ID = ",V.ODBC.con!rst.FieldVal!WF_ID," AND LINE = 9",V.Local.sQuery)
+	F.ODBC.Connection!con.OpenRecordsetRO("rstWFL",V.Local.sQuery)
+	F.Intrinsic.Control.If(V.ODBC.con!rstWFL.EOF,=,False)
+		F.Intrinsic.Control.If(V.ODBC.con!rstWFL.FieldValIsNull!COMPLETION_DATE,=,True)
+			V.Passed.777777.Set(1)
+			F.Intrinsic.String.Concat("Can not sign into job. Work Flow number ",V.ODBC.con!rst.FieldVal!WF_ID," has not been completed",V.Local.sQuery)
+			F.Intrinsic.UI.Msgbox(V.Local.sQuery)
+
+		F.Intrinsic.Control.endif
+	F.Intrinsic.Control.endif
+	F.ODBC.con!rstWFL.Close
+F.Intrinsic.Control.endif
+
+F.ODBC.con!rst.Close
+
+
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+Program.Sub.Main.End
+
+
